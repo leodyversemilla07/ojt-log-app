@@ -46,22 +46,27 @@ describe('storage', () => {
   it('returns empty logs when unauthenticated', async () => {
     mocks.getUser.mockResolvedValue({ data: { user: null }, error: null });
 
-    const logs = await getLogs();
+    const result = await getLogs(0);
 
-    expect(logs).toEqual([]);
+    expect(result.logs).toEqual([]);
+    expect(result.total).toBe(0);
+    expect(result.hasMore).toBe(false);
   });
 
   it('maps Supabase rows to app logs', async () => {
     mocks.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null });
 
-    const order = vi.fn().mockResolvedValue({ data: [sampleRow], error: null });
-    const select = vi.fn().mockReturnValue({ order });
+    const range = vi.fn().mockResolvedValue({ data: [sampleRow], error: null, count: 1 });
+    const order = vi.fn().mockReturnValue({ range });
+    const eq = vi.fn().mockResolvedValue({ count: 1 });
+    const head = vi.fn().mockResolvedValue({ count: 1 });
+    const select = vi.fn().mockReturnValue({ order, eq, head });
     mocks.from.mockReturnValue({ select });
 
-    const logs = await getLogs();
+    const result = await getLogs(0);
 
-    expect(logs).toHaveLength(1);
-    expect(logs[0]).toMatchObject({
+    expect(result.logs).toHaveLength(1);
+    expect(result.logs[0]).toMatchObject({
       id: 'log-1',
       weekNumber: 2,
       dayNumber: 3,

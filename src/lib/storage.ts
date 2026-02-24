@@ -3,6 +3,7 @@ import { calculateTotalHours } from '@/lib/time';
 import { supabase } from '@/utils/supabase';
 
 const STORAGE_KEY = 'ojt_logs_data';
+const CACHE_TTL = 30000;
 
 type SupabaseLogRow = {
     id: string;
@@ -20,6 +21,41 @@ type SupabaseLogRow = {
     created_at: string;
     updated_at: string;
 };
+
+type LogListItem = Pick<SupabaseLogRow, 'id' | 'date' | 'week_number' | 'day_number' | 'time_in' | 'time_out' | 'total_hours'>;
+
+interface CacheEntry<T> {
+    data: T;
+    timestamp: number;
+}
+
+const cache: Map<string, CacheEntry<unknown>> = new Map();
+
+function getCached<T>(key: string): T | null {
+    const entry = cache.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.timestamp > CACHE_TTL) {
+        cache.delete(key);
+        return null;
+    }
+    return entry.data as T;
+}
+
+function setCache<T>(key: string, data: T): void {
+    cache.set(key, { data, timestamp: Date.now() });
+}
+
+function invalidateCache(pattern?: string): void {
+    if (!pattern) {
+        cache.clear();
+        return;
+    }
+    for (const key of cache.keys()) {
+        if (key.includes(pattern)) {
+            cache.delete(key);
+        }
+    }
+}
 
 function getLegacyLocalLogs(): OJTLogEntry[] {
     try {
@@ -99,23 +135,87 @@ export async function importLegacyLocalLogs(): Promise<{ imported: number }> {
     return { imported: legacyLogs.length };
 }
 
-export async function getLogs(): Promise<OJTLogEntry[]> {
+export interface PaginatedLogs {
+    logs: OJTLogEntry[];
+    total: number;
+    hasMore: boolean;
+}
+
+const PAGE_SIZE = 20;
+
+export async function getLogs(page: number = 0): Promise<PaginatedLogs> {
     const userId = await getAuthUserId();
     if (!userId) {
-        return [];
+        return { logs: [], total: 0, hasMore: false };
+    }
+
+    const cacheKey = `logs_${userId}_${page}`;
+    const cached = getCached<PaginatedLogs>(cacheKey);
+    if (cached) {
+        return cached;
+    }
+
+    const from = page * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    const [{ data, error }, { count }] = await Promise.all([
+        supabase
+            .from('ojt_logs')
+            .select('id,date,week_number,day_number,time_in,time_out,total_hours', { count: 'exact' })
+            .order('date', { ascending: false })
+            .range(from, to),
+        supabase
+            .from('ojt_logs')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', userId)
+    ]);
+
+    if (error) {
+        console.error('Failed to fetch logs from Supabase', error);
+        return { logs: [], total: 0, hasMore: false };
+    }
+
+    const logs = (data as LogListItem[]).map((row): OJTLogEntry => ({
+        id: row.id,
+        date: row.date,
+        weekNumber: row.week_number,
+        dayNumber: row.day_number,
+        timeIn: row.time_in.slice(0, 5),
+        timeOut: row.time_out.slice(0, 5),
+        totalHours: Number(row.total_hours),
+        tasksAccomplished: [],
+        keyLearnings: [],
+        challenges: '',
+        goalsForTomorrow: '',
+    }));
+    const total = count ?? 0;
+    const result = {
+        logs,
+        total,
+        hasMore: to < total - 1
+    };
+
+    setCache(cacheKey, result);
+    return result;
+}
+
+export async function getTotalHoursLogged(): Promise<number> {
+    const userId = await getAuthUserId();
+    if (!userId) {
+        return 0;
     }
 
     const { data, error } = await supabase
         .from('ojt_logs')
-        .select('*')
-        .order('date', { ascending: false });
+        .select('total_hours')
+        .eq('user_id', userId);
 
     if (error) {
-        console.error('Failed to fetch logs from Supabase', error);
-        return [];
+        console.error('Failed to fetch total hours', error);
+        return 0;
     }
 
-    return (data as SupabaseLogRow[]).map(mapRowToLog);
+    return (data ?? []).reduce((sum, row) => sum + (Number(row.total_hours) || 0), 0);
 }
 
 export async function getLogById(id: string): Promise<OJTLogEntry | null> {
@@ -168,6 +268,7 @@ export async function saveLog(data: OJTLogEntryFormData): Promise<OJTLogEntry> {
         throw error;
     }
 
+    invalidateCache('logs');
     return mapRowToLog(inserted as SupabaseLogRow);
 }
 
@@ -202,6 +303,7 @@ export async function updateLog(id: string, data: OJTLogEntryFormData): Promise<
         throw error;
     }
 
+    invalidateCache('logs');
     return updated ? mapRowToLog(updated as SupabaseLogRow) : null;
 }
 
@@ -220,9 +322,6 @@ export async function deleteLog(id: string): Promise<void> {
     if (error) {
         throw error;
     }
-}
 
-export async function getTotalHoursLogged(): Promise<number> {
-    const logs = await getLogs();
-    return logs.reduce((sum, log) => sum + log.totalHours, 0);
+    invalidateCache('logs');
 }

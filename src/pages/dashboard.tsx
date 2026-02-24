@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { PlusCircle, Clock, FileText, Calendar, Upload } from 'lucide-react';
-import { getLogs, hasLegacyLocalLogs, importLegacyLocalLogs } from '@/lib/storage';
+import { PlusCircle, Clock, FileText, Calendar, Upload, ChevronDown } from 'lucide-react';
+import { getLogs, hasLegacyLocalLogs, importLegacyLocalLogs, getTotalHoursLogged } from '@/lib/storage';
 import type { OJTLogEntry } from '@/types/log';
 import { toast } from 'sonner';
 
@@ -11,50 +11,74 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export function Dashboard() {
     const [logs, setLogs] = useState<OJTLogEntry[]>([]);
+    const [totalHours, setTotalHours] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [loadError, setLoadError] = useState('');
     const [hasLegacyData, setHasLegacyData] = useState(false);
     const [importing, setImporting] = useState(false);
     const [importMessage, setImportMessage] = useState('');
+    const [page, setPage] = useState(0);
+    const [hasMore, setHasMore] = useState(false);
+
+    const fetchLogs = useCallback(async (pageNum: number, isInitial = false) => {
+        if (isInitial) {
+            setLoading(true);
+        } else {
+            setLoadingMore(true);
+        }
+        try {
+            const result = await getLogs(pageNum);
+            if (isInitial) {
+                setLogs(result.logs);
+            } else {
+                setLogs(prev => [...prev, ...result.logs]);
+            }
+            setHasMore(result.hasMore);
+            setPage(pageNum);
+            setHasLegacyData(hasLegacyLocalLogs());
+            setLoadError('');
+        } catch (error) {
+            const text = error instanceof Error ? error.message : 'Failed to load logs.';
+            setLoadError(text);
+            toast.error(text);
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
+        }
+    }, []);
+
+    const fetchTotalHours = useCallback(async () => {
+        try {
+            const hours = await getTotalHoursLogged();
+            setTotalHours(hours);
+        } catch (error) {
+            console.error('Failed to fetch total hours', error);
+        }
+    }, []);
 
     useEffect(() => {
         let active = true;
-        void getLogs()
-            .then((data) => {
-                if (active) {
-                    setLogs(data);
-                    setHasLegacyData(hasLegacyLocalLogs());
-                    setLoadError('');
-                }
-            })
-            .catch((error) => {
-                const text = error instanceof Error ? error.message : 'Failed to load logs.';
-                if (active) {
-                    setLoadError(text);
-                }
-                toast.error(text);
-            })
-            .finally(() => {
-                if (active) {
-                    setLoading(false);
-                }
-            });
+        fetchLogs(0, true).then(() => {
+            if (active) fetchTotalHours();
+        });
+        return () => { active = false; };
+    }, [fetchLogs, fetchTotalHours]);
 
-        return () => {
-            active = false;
-        };
-    }, []);
-
-    const totalHours = logs.reduce((sum, log) => sum + log.totalHours, 0);
+    function handleLoadMore() {
+        fetchLogs(page + 1);
+    }
 
     async function handleImportLegacyLogs() {
         setImporting(true);
         setImportMessage('');
         try {
             const result = await importLegacyLocalLogs();
-            const refreshed = await getLogs();
-            setLogs(refreshed);
+            const refreshed = await getLogs(0);
+            setLogs(refreshed.logs);
+            setHasMore(refreshed.hasMore);
             setHasLegacyData(false);
+            fetchTotalHours();
             setImportMessage(`Imported ${result.imported} local log(s) to your account.`);
             toast.success(`Imported ${result.imported} local log(s).`);
         } catch (error) {
@@ -198,6 +222,20 @@ export function Dashboard() {
                                 </Card>
                             </Link>
                         ))}
+                    </div>
+                )}
+                {hasMore && (
+                    <div className="flex justify-center pt-4">
+                        <Button variant="outline" onClick={handleLoadMore} disabled={loadingMore}>
+                            {loadingMore ? (
+                                <>Loading...</>
+                            ) : (
+                                <>
+                                    <ChevronDown className="mr-2 h-4 w-4" />
+                                    Load More
+                                </>
+                            )}
+                        </Button>
                     </div>
                 )}
             </div>
