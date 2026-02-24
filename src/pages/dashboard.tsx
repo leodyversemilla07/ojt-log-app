@@ -175,7 +175,7 @@ export function Dashboard() {
 
             <div className="grid gap-4 md:grid-cols-3">
                 <Card className="md:col-span-2 overflow-hidden relative group">
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute inset-0 bg-linear-to-r from-primary/10 via-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total Hours Tracked</CardTitle>
                         <Clock className="h-4 w-4 text-muted-foreground" />
@@ -188,7 +188,7 @@ export function Dashboard() {
                     </CardContent>
                 </Card>
                 <Card className="overflow-hidden relative group">
-                    <div className="absolute inset-0 bg-gradient-to-br from-secondary/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute inset-0 bg-linear-to-br from-secondary/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Log Entries</CardTitle>
                         <FileText className="h-4 w-4 text-muted-foreground" />
@@ -203,7 +203,7 @@ export function Dashboard() {
             </div>
 
             <Card className="overflow-hidden relative group border-primary/20">
-                <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 via-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="absolute inset-0 bg-linear-to-r from-green-500/10 via-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium flex items-center gap-2">
                         <Target className="h-4 w-4 text-green-500" />
@@ -256,7 +256,7 @@ export function Dashboard() {
                     </div>
                     <div className="w-full bg-secondary rounded-full h-3 overflow-hidden">
                         <div
-                            className="h-full bg-gradient-to-r from-green-500 to-green-400 transition-all duration-500 ease-out rounded-full"
+                            className="h-full bg-linear-to-r from-green-500 to-green-400 transition-all duration-500 ease-out rounded-full"
                             style={{ width: `${progressPercent}%` }}
                         />
                     </div>
@@ -290,7 +290,7 @@ export function Dashboard() {
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         {logs.map((log) => (
                             <Link key={log.id} to={`/log/${log.id}`} className="block group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl">
-                                <Card className="h-full transition-all duration-300 hover:shadow-md hover:border-primary/50 bg-gradient-to-br from-card to-muted/30">
+                                <Card className="h-full transition-all duration-300 hover:shadow-md hover:border-primary/50 bg-linear-to-br from-card to-muted/30">
                                     <CardHeader className="pb-3">
                                         <CardTitle className="text-lg group-hover:text-primary transition-colors duration-300">
                                             {new Date(log.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}

@@ -61,7 +61,7 @@ export function AuthPage() {
     }
 
     return (
-        <div className="min-h-[100dvh] bg-background text-foreground antialiased flex items-center justify-center px-4 py-8">
+        <div className="min-h-dvh bg-background text-foreground antialiased flex items-center justify-center px-4 py-8">
             <main className="w-full max-w-md">
                 <Card className="border-border/60 shadow-sm">
                     <CardHeader className="space-y-1">

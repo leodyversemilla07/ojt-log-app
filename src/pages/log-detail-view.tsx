@@ -175,7 +175,7 @@ ${log.goalsForTomorrow || '- None'}
                             <Calendar className="h-4 w-4 text-primary" />
                             <span className="text-sm font-medium text-primary">Week {log.weekNumber}, Day {log.dayNumber}</span>
                         </div>
-                        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight break-words">{formattedDate}</h1>
+                        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight wrap-break-word">{formattedDate}</h1>
                     </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 no-print sm:justify-end">

@@ -251,7 +251,7 @@ export function LogEntryForm() {
                                         <FormControl>
                                             <Textarea
                                                 placeholder="E.g. Fixed bugs in the login module... (Tip: Use a new line for each task)"
-                                                className="min-h-[120px] resize-y"
+                                                className="min-h-30 resize-y"
                                                 {...field}
                                             />
                                         </FormControl>
@@ -269,7 +269,7 @@ export function LogEntryForm() {
                                         <FormControl>
                                             <Textarea
                                                 placeholder="E.g. Learned how to implement Zod validation..."
-                                                className="min-h-[100px] resize-y"
+                                                className="min-h-25 resize-y"
                                                 {...field}
                                             />
                                         </FormControl>
@@ -287,7 +287,7 @@ export function LogEntryForm() {
                                         <FormControl>
                                             <Textarea
                                                 placeholder="E.g. Struggled with adjusting the database schema..."
-                                                className="min-h-[80px] resize-y"
+                                                className="min-h-20 resize-y"
                                                 {...field}
                                             />
                                         </FormControl>
@@ -304,7 +304,7 @@ export function LogEntryForm() {
                                         <FormControl>
                                             <Textarea
                                                 placeholder="E.g. Will focus on completing the dashboard UI..."
-                                                className="min-h-[80px] resize-y"
+                                                className="min-h-20 resize-y"
                                                 {...field}
                                             />
                                         </FormControl>
@@ -319,7 +319,7 @@ export function LogEntryForm() {
                         <Button variant="outline" asChild type="button" disabled={saving}>
                             <Link to="/">Cancel</Link>
                         </Button>
-                        <Button type="submit" className="min-w-[120px] shadow-md shadow-primary/20" disabled={saving || loadingLog}>
+                        <Button type="submit" className="min-w-30 shadow-md shadow-primary/20" disabled={saving || loadingLog}>
                             <Save className="mr-2 h-4 w-4" />
                             {saving ? 'Saving...' : 'Save Log'}
                         </Button>
