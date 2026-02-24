@@ -1,13 +1,25 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { PlusCircle, Clock, FileText, Calendar, Upload, ChevronDown } from 'lucide-react';
-import { getLogs, hasLegacyLocalLogs, importLegacyLocalLogs, getTotalHoursLogged } from '@/lib/storage';
+import { PlusCircle, Clock, FileText, Calendar, Upload, ChevronDown, Target, Settings } from 'lucide-react';
+import { getLogs, hasLegacyLocalLogs, importLegacyLocalLogs, getTotalHoursLogged, getTargetHours, setTargetHours } from '@/lib/storage';
 import type { OJTLogEntry } from '@/types/log';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 
 export function Dashboard() {
     const [logs, setLogs] = useState<OJTLogEntry[]>([]);
@@ -20,6 +32,9 @@ export function Dashboard() {
     const [importMessage, setImportMessage] = useState('');
     const [page, setPage] = useState(0);
     const [hasMore, setHasMore] = useState(false);
+    const [targetHours, setTargetHoursState] = useState(() => getTargetHours());
+    const [settingsOpen, setSettingsOpen] = useState(false);
+    const [targetInput, setTargetInput] = useState(targetHours.toString());
 
     const fetchLogs = useCallback(async (pageNum: number, isInitial = false) => {
         if (isInitial) {
@@ -89,6 +104,21 @@ export function Dashboard() {
             setImporting(false);
         }
     }
+
+    function handleSaveTargetHours() {
+        const hours = Number(targetInput);
+        if (hours > 0) {
+            setTargetHours(hours);
+            setTargetHoursState(hours);
+            setSettingsOpen(false);
+            toast.success(`Target hours set to ${hours} hours`);
+        } else {
+            toast.error('Please enter a valid number greater than 0');
+        }
+    }
+
+    const progressPercent = Math.min((totalHours / targetHours) * 100, 100);
+    const hoursRemaining = Math.max(targetHours - totalHours, 0);
 
     return (
         <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
@@ -171,6 +201,67 @@ export function Dashboard() {
                     </CardContent>
                 </Card>
             </div>
+
+            <Card className="overflow-hidden relative group border-primary/20">
+                <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 via-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <Target className="h-4 w-4 text-green-500" />
+                        Progress to Target
+                    </CardTitle>
+                    <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <Settings className="h-4 w-4" />
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Set Target Hours</DialogTitle>
+                                <DialogDescription>
+                                    Configure your OJT hour goal. The progress bar will show your completion percentage.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="py-4">
+                                <Label htmlFor="targetHours">Target Hours</Label>
+                                <Input
+                                    id="targetHours"
+                                    type="number"
+                                    min="1"
+                                    value={targetInput}
+                                    onChange={(e) => setTargetInput(e.target.value)}
+                                    className="mt-2"
+                                />
+                            </div>
+                            <DialogFooter>
+                                <DialogClose asChild>
+                                    <Button variant="outline">Cancel</Button>
+                                </DialogClose>
+                                <Button onClick={handleSaveTargetHours}>Save</Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-end justify-between mb-2">
+                        <div>
+                            <div className="text-4xl font-bold tracking-tighter text-green-600">{progressPercent.toFixed(1)}%</div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                {hoursRemaining > 0 ? `${hoursRemaining.toFixed(1)} hours remaining` : 'Target reached!'}
+                            </p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-sm font-medium">{totalHours.toFixed(1)} / {targetHours} hrs</p>
+                        </div>
+                    </div>
+                    <div className="w-full bg-secondary rounded-full h-3 overflow-hidden">
+                        <div
+                            className="h-full bg-gradient-to-r from-green-500 to-green-400 transition-all duration-500 ease-out rounded-full"
+                            style={{ width: `${progressPercent}%` }}
+                        />
+                    </div>
+                </CardContent>
+            </Card>
 
             <div className="space-y-4">
                 <h2 className="text-xl font-semibold tracking-tight">Recent Logs</h2>

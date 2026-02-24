@@ -57,6 +57,32 @@ function invalidateCache(pattern?: string): void {
     }
 }
 
+const SETTINGS_KEY = 'ojt_settings';
+const DEFAULT_TARGET_HOURS = 500;
+
+export interface AppSettings {
+    targetHours: number;
+}
+
+function getSettings(): AppSettings {
+    try {
+        const val = localStorage.getItem(SETTINGS_KEY);
+        return val ? JSON.parse(val) : { targetHours: DEFAULT_TARGET_HOURS };
+    } catch (e) {
+        return { targetHours: DEFAULT_TARGET_HOURS };
+    }
+}
+
+export function getTargetHours(): number {
+    return getSettings().targetHours;
+}
+
+export function setTargetHours(hours: number): void {
+    const settings = getSettings();
+    settings.targetHours = hours;
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
 function getLegacyLocalLogs(): OJTLogEntry[] {
     try {
         const val = localStorage.getItem(STORAGE_KEY);
