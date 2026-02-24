@@ -1,12 +1,26 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { LogOut } from 'lucide-react';
+import { LogOut, Settings } from 'lucide-react';
 import { Routes, Route } from 'react-router-dom';
 import { supabase } from '@/utils/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Toaster } from '@/components/ui/sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
+import { getTargetHours, setTargetHours } from '@/lib/storage';
+import { toast } from 'sonner';
 
 const AuthPage = lazy(() =>
   import('./pages/auth').then((module) => ({ default: module.AuthPage }))
@@ -24,6 +38,8 @@ const LogDetailView = lazy(() =>
 export function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [targetInput, setTargetInput] = useState(() => getTargetHours().toString());
 
   useEffect(() => {
     let active = true;
@@ -84,6 +100,17 @@ export function App() {
     await supabase.auth.signOut();
   }
 
+  function handleSaveTargetHours() {
+    const hours = Number(targetInput);
+    if (hours > 0) {
+      setTargetHours(hours);
+      setSettingsOpen(false);
+      toast.success(`Target hours set to ${hours} hours`);
+    } else {
+      toast.error('Please enter a valid number greater than 0');
+    }
+  }
+
   return (
     <div className="min-h-[100dvh] bg-background text-foreground antialiased selection:bg-primary/10">
       <Toaster richColors />
@@ -94,10 +121,44 @@ export function App() {
               <p className="text-sm font-semibold tracking-tight">OJT Daily Logs</p>
               <p className="text-xs text-muted-foreground truncate">{session.user.email}</p>
             </div>
-            <Button variant="outline" size="sm" onClick={handleSignOut}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </Button>
+            <div className="flex items-center gap-2">
+              <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Set Target Hours</DialogTitle>
+                    <DialogDescription>
+                      Configure your OJT hour goal. The progress bar will show your completion percentage.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4">
+                    <Label htmlFor="targetHours">Target Hours</Label>
+                    <Input
+                      id="targetHours"
+                      type="number"
+                      min="1"
+                      value={targetInput}
+                      onChange={(e) => setTargetInput(e.target.value)}
+                      className="mt-2"
+                    />
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+                    <Button onClick={handleSaveTargetHours}>Save</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              <Button variant="outline" size="sm" onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </Button>
+            </div>
           </div>
         </div>
         <Suspense
