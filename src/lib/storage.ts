@@ -58,7 +58,7 @@ function invalidateCache(pattern?: string): void {
 }
 
 const SETTINGS_KEY = 'ojt_settings';
-const DEFAULT_TARGET_HOURS = 500;
+const DEFAULT_TARGET_HOURS = 486;
 
 export interface AppSettings {
     targetHours: number;
