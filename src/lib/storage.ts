@@ -68,7 +68,7 @@ function getSettings(): AppSettings {
     try {
         const val = localStorage.getItem(SETTINGS_KEY);
         return val ? JSON.parse(val) : { targetHours: DEFAULT_TARGET_HOURS };
-    } catch (e) {
+    } catch {
         return { targetHours: DEFAULT_TARGET_HOURS };
     }
 }
