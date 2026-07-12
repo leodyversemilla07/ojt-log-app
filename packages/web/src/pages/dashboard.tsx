@@ -16,6 +16,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import { AnalyticsCharts } from '@/components/analytics-charts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -451,6 +452,11 @@ export function Dashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Analytics Charts */}
+      {!loading && logs.length > 0 && (
+        <AnalyticsCharts logs={logs} totalHours={totalHours} targetHours={targetHours} />
+      )}
 
       <div className="space-y-4">
         <h2 className="text-xl font-semibold tracking-tight">Recent Logs</h2>
