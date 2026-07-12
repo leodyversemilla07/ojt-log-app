@@ -19,7 +19,7 @@ COPY packages/shared ./packages/shared
 RUN cd packages/api && npx prisma generate
 
 # Build
-RUN npm run build -w packages/shared && npm run build -w packages/api
+RUN npm run build -w packages/api
 
 # Production stage for API
 FROM node:22-alpine AS api-production
@@ -39,7 +39,6 @@ RUN npm ci --omit=dev
 
 # Copy built files
 COPY --from=api-builder /app/packages/api/dist ./packages/api/dist
-COPY --from=api-builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=api-builder /app/packages/api/prisma ./packages/api/prisma
 COPY --from=api-builder /app/node_modules/.prisma ./node_modules/.prisma
 
