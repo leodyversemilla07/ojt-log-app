@@ -17,18 +17,19 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { deleteLog, getLogById } from '@/lib/storage';
 
@@ -250,13 +251,13 @@ ${log.goalsForTomorrow || '- None'}
             </Link>
           </Button>
 
-          <Dialog>
-            <DialogTrigger asChild>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
               <Button variant="destructive" size="sm" className="hidden sm:flex">
                 <Trash2 className="h-4 w-4 mr-2" /> Delete
               </Button>
-            </DialogTrigger>
-            <DialogTrigger asChild>
+            </AlertDialogTrigger>
+            <AlertDialogTrigger asChild>
               <Button
                 variant="destructive"
                 size="icon"
@@ -265,27 +266,27 @@ ${log.goalsForTomorrow || '- None'}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Delete this log entry?</DialogTitle>
-                <DialogDescription>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this log entry?</AlertDialogTitle>
+                <AlertDialogDescription>
                   This action cannot be undone. The selected OJT log will be permanently removed.
-                </DialogDescription>
-              </DialogHeader>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
               {deleteError ? <p className="text-sm text-destructive">{deleteError}</p> : null}
-              <DialogFooter>
-                <DialogClose asChild disabled={deleting}>
-                  <Button variant="outline" disabled={deleting}>
-                    Cancel
-                  </Button>
-                </DialogClose>
-                <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
                   {deleting ? 'Deleting...' : 'Delete'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 

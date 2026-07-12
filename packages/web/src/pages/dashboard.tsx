@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AnalyticsCharts } from '@/components/analytics-charts';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -287,28 +288,28 @@ export function Dashboard() {
                 <span className="text-sm text-muted-foreground">Active filters:</span>
                 <div className="flex flex-wrap gap-2">
                   {activeFilters.search && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-md text-sm">
+                    <Badge variant="secondary" className="gap-1">
                       Search: {activeFilters.search}
                       <X className="h-3 w-3 cursor-pointer" onClick={handleClearFilters} />
-                    </span>
+                    </Badge>
                   )}
                   {activeFilters.startDate && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-md text-sm">
+                    <Badge variant="secondary" className="gap-1">
                       From: {activeFilters.startDate}
                       <X className="h-3 w-3 cursor-pointer" onClick={handleClearFilters} />
-                    </span>
+                    </Badge>
                   )}
                   {activeFilters.endDate && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-md text-sm">
+                    <Badge variant="secondary" className="gap-1">
                       To: {activeFilters.endDate}
                       <X className="h-3 w-3 cursor-pointer" onClick={handleClearFilters} />
-                    </span>
+                    </Badge>
                   )}
                   {activeFilters.weekNumber && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-md text-sm">
+                    <Badge variant="secondary" className="gap-1">
                       Week: {activeFilters.weekNumber}
                       <X className="h-3 w-3 cursor-pointer" onClick={handleClearFilters} />
-                    </span>
+                    </Badge>
                   )}
                 </div>
                 <Button variant="ghost" size="sm" onClick={handleClearFilters}>
