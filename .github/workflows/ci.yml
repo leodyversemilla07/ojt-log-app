@@ -41,9 +41,6 @@ jobs:
       
       - run: npm ci
       
-      - name: Build shared package
-        run: npm run build -w packages/shared
-      
       - name: Setup database
         run: |
           npm run db:generate
@@ -66,14 +63,8 @@ jobs:
       
       - run: npm ci
       
-      - name: Build shared package
-        run: npm run build -w packages/shared
-      
-      - name: Build API
-        run: npm run build -w packages/api
-      
-      - name: Build Web
-        run: npm run build -w packages/web
+      - name: Build packages
+        run: npm run build
 
   docker:
     name: Docker Build
