@@ -148,7 +148,10 @@ describe('Time Utilities', () => {
 });
 
 describe('Database Operations', () => {
+  let testCounter = 0;
+
   beforeEach(async () => {
+    testCounter++;
     await prisma.oJTLog.deleteMany();
     await prisma.user.deleteMany();
   });
@@ -157,7 +160,7 @@ describe('Database Operations', () => {
     const hashedPassword = await bcrypt.hash('password123', 12);
     const user = await prisma.user.create({
       data: {
-        email: 'test@example.com',
+        email: `test${testCounter}@example.com`,
         password: hashedPassword,
       },
     });
@@ -167,14 +170,14 @@ describe('Database Operations', () => {
     });
 
     expect(retrievedUser).not.toBeNull();
-    expect(retrievedUser?.email).toBe('test@example.com');
+    expect(retrievedUser?.email).toBe(`test${testCounter}@example.com`);
   });
 
   it('should create and retrieve log entry', async () => {
     const hashedPassword = await bcrypt.hash('password123', 12);
     const user = await prisma.user.create({
       data: {
-        email: 'test@example.com',
+        email: `test${testCounter}@example.com`,
         password: hashedPassword,
       },
     });
@@ -209,7 +212,7 @@ describe('Database Operations', () => {
     const hashedPassword = await bcrypt.hash('password123', 12);
     const user = await prisma.user.create({
       data: {
-        email: 'test@example.com',
+        email: `test${testCounter}@example.com`,
         password: hashedPassword,
       },
     });
@@ -245,7 +248,7 @@ describe('Database Operations', () => {
     const hashedPassword = await bcrypt.hash('password123', 12);
     const user = await prisma.user.create({
       data: {
-        email: 'test@example.com',
+        email: `test${testCounter}@example.com`,
         password: hashedPassword,
       },
     });
@@ -281,7 +284,7 @@ describe('Database Operations', () => {
     const hashedPassword = await bcrypt.hash('password123', 12);
     const user = await prisma.user.create({
       data: {
-        email: 'test@example.com',
+        email: `test${testCounter}@example.com`,
         password: hashedPassword,
       },
     });
