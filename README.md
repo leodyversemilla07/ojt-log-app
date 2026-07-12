@@ -1,111 +1,149 @@
 # OJT Daily Logs
 
-OJT Daily Logs is a React + TypeScript application for recording internship/OJT daily activities, tracking rendered hours, and exporting reports.
+OJT Daily Logs is a monorepo application for recording internship/OJT daily activities, tracking rendered hours, and exporting reports.
 
 ## Tech Stack
 
+### Frontend (`packages/web`)
 - React 19 + TypeScript
 - Vite
 - Tailwind CSS v4 + shadcn UI
-- Supabase (Auth + Postgres)
-- Vitest + Testing Library
 
-## Features
+### Backend (`packages/api`)
+- Express.js + TypeScript
+- SQLite (via Prisma ORM)
+- JWT Authentication
 
-- Email/password authentication with Supabase
-- Create, edit, view, and delete OJT entries
-- Automatic total-hours calculation (with noon break exclusion)
-- Markdown and PDF export from log details
-- Legacy localStorage import into Supabase account
-- Mobile-first UI updates and confirmation dialogs
+### Shared (`packages/shared`)
+- TypeScript types and interfaces
+
+## Project Structure
+
+```
+ojt-log-app/
+├── packages/
+│   ├── api/                 # Express.js backend
+│   │   ├── prisma/
+│   │   │   ├── schema.prisma
+│   │   │   ├── seed.ts
+│   │   │   └── dev.db
+│   │   ├── src/
+│   │   │   ├── routes/
+│   │   │   ├── middleware/
+│   │   │   ├── validators/
+│   │   │   └── utils/
+│   │   ├── .env
+│   │   └── package.json
+│   ├── web/                 # React frontend
+│   │   ├── src/
+│   │   │   ├── components/
+│   │   │   ├── lib/
+│   │   │   └── pages/
+│   │   ├── .env
+│   │   └── package.json
+│   └── shared/              # Shared types
+│       ├── src/
+│       │   └── index.ts
+│       └── package.json
+├── package.json             # Root workspace config
+└── README.md
+```
 
 ## Prerequisites
 
 - Node.js 18+
 - npm
-- Supabase project
-
-## Environment Variables
-
-Create a local `.env` file:
-
-```env
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your_supabase_anon_or_publishable_key
-```
 
 ## Setup
 
-Install dependencies:
+### 1. Install all dependencies
 
 ```bash
 npm install
 ```
 
-Run development server:
+### 2. Setup database
 
 ```bash
-npm run dev
+npm run db:generate
+npm run db:push
+npm run db:seed      # Optional: Add test data
 ```
 
-App runs by default at `http://localhost:5173`.
-
-## Supabase Migration
-
-This repository includes a migration for the `ojt_logs` table and RLS policies:
-
-- `supabase/migrations/20260221071005_create_ojt_logs_schema.sql`
-
-To apply via CLI:
+### 3. Start development servers
 
 ```bash
-npx supabase login
-npx supabase link --project-ref dekygcyziqzanxwbfumj
-npx supabase db push
+npm run dev          # Starts both frontend and backend
 ```
 
-If SQL was applied manually, repair migration history:
+Or start them separately:
 
 ```bash
-npx supabase migration repair --status applied 20260221071005
+npm run dev:api      # Backend on http://localhost:3001
+npm run dev:web      # Frontend on http://localhost:5173
 ```
 
-## RLS Verification (Cross-User)
+## Environment Variables
 
-Use this script to verify row-level security setup and perform cross-user checks:
+### Frontend (`packages/web/.env`)
+```env
+VITE_API_URL=http://localhost:3001
+```
 
-- `supabase/verification/rls_checks.sql`
+### Backend (`packages/api/.env`)
+```env
+DATABASE_URL="file:./dev.db"
+JWT_SECRET="your-secret-key"
+JWT_EXPIRES_IN="7d"
+PORT=3001
+```
 
-Recommended process:
+## API Endpoints
 
-1. Create two real test users in Supabase Auth.
-2. Replace `<USER_A_UUID>` and `<USER_B_UUID>` in the SQL script.
-3. Run the script in Supabase SQL Editor.
-4. Sign in from the app as each user and verify each user can only read/write their own rows.
+### Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Register new user |
+| POST | `/api/auth/login` | Login user |
+| GET | `/api/auth/me` | Get current user |
+
+### Logs
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/logs` | Get all logs (paginated) |
+| GET | `/api/logs/stats` | Get total hours logged |
+| GET | `/api/logs/:id` | Get single log |
+| POST | `/api/logs` | Create new log |
+| PUT | `/api/logs/:id` | Update log |
+| DELETE | `/api/logs/:id` | Delete log |
 
 ## Scripts
 
-- `npm run dev` - Start local development server
-- `npm run build` - Type-check and build production bundle
-- `npm run lint` - Run ESLint
-- `npm test` - Run Vitest test suite
-- `npm run preview` - Preview production build
+### Root
+- `npm run dev` - Start all dev servers
+- `npm run build` - Build all packages
+- `npm run test` - Run all tests
+
+### Frontend (`packages/web`)
+- `npm run dev:web` - Start frontend dev server
+- `npm run build:web` - Build frontend
+- `npm run test` - Run frontend tests
+
+### Backend (`packages/api`)
+- `npm run dev:api` - Start backend dev server
+- `npm run build:api` - Build backend
+- `npm run db:generate` - Generate Prisma client
+- `npm run db:push` - Push schema to database
+- `npm run db:seed` - Seed database
 
 ## Testing
-
-Current test coverage includes:
-
-- `src/lib/time.test.ts` (time calculation logic)
-- `src/lib/storage.test.ts` (Supabase-backed storage behavior with mocks)
-- `src/App.test.tsx` (auth gate behavior)
-
-Run tests:
 
 ```bash
 npm test
 ```
 
-## Notes
+## Test Account
 
-- The app is Supabase-first for data operations.
-- A one-time local import flow is available if old browser logs are detected.
+After running `npm run db:seed`:
+- **Email:** `test@example.com`
+- **Password:** `password123`

@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  logs      OJTLog[]
+
+  @@map("users")
+}
+
+model OJTLog {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  date              String   // YYYY-MM-DD format
+  weekNumber        Int      @map("week_number")
+  dayNumber         Int      @map("day_number")
+  timeIn            String   @map("time_in") // HH:mm format
+  timeOut           String   @map("time_out") // HH:mm format
+  totalHours        Float    @map("total_hours")
+  tasksAccomplished String   @map("tasks_accomplished") // JSON string
+  keyLearnings      String   @map("key_learnings") // JSON string
+  challenges        String?
+  goalsForTomorrow  String?  @map("goals_for_tomorrow")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([date])
+  @@map("ojt_logs")
+}
