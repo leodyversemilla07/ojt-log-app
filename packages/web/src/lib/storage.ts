@@ -1,5 +1,5 @@
 import type { OJTLogEntry, OJTLogEntryFormData } from '@ojt-log/shared';
-import { type LogDetail, logsApi } from '@/lib/api';
+import { type LogDetail, type LogFilters, logsApi } from '@/lib/api';
 
 const SETTINGS_KEY = 'ojt_settings';
 const DEFAULT_TARGET_HOURS = 486;
@@ -114,9 +114,9 @@ export interface PaginatedLogs {
   hasMore: boolean;
 }
 
-export async function getLogs(page: number = 0): Promise<PaginatedLogs> {
+export async function getLogs(page: number = 0, filters?: LogFilters): Promise<PaginatedLogs> {
   try {
-    const data = await logsApi.getLogs(page);
+    const data = await logsApi.getLogs(page, 20, filters);
     return {
       logs: data.logs.map((log) => ({
         id: log.id,
@@ -181,4 +181,68 @@ export async function updateLog(
 
 export async function deleteLog(id: string): Promise<void> {
   await logsApi.deleteLog(id);
+}
+
+// Export logs as CSV
+export async function exportLogsAsCsv(filters?: LogFilters): Promise<void> {
+  // Fetch all logs (up to 1000 for export)
+  const data = await logsApi.getLogs(0, 1000, filters);
+
+  if (data.logs.length === 0) {
+    throw new Error('No logs to export');
+  }
+
+  // Fetch full details for each log
+  const fullLogs: OJTLogEntry[] = [];
+  for (const log of data.logs) {
+    const full = await logsApi.getLogById(log.id);
+    fullLogs.push(mapLogToEntry(full));
+  }
+
+  // CSV headers
+  const headers = [
+    'Date',
+    'Week',
+    'Day',
+    'Time In',
+    'Time Out',
+    'Total Hours',
+    'Tasks Accomplished',
+    'Key Learnings',
+    'Challenges',
+    'Goals for Tomorrow',
+  ];
+
+  // Escape CSV field
+  function escapeField(value: string): string {
+    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+    return value;
+  }
+
+  // Build CSV rows
+  const rows = fullLogs.map((log) => [
+    log.date,
+    log.weekNumber.toString(),
+    log.dayNumber.toString(),
+    log.timeIn,
+    log.timeOut,
+    log.totalHours.toString(),
+    escapeField(log.tasksAccomplished.join('; ')),
+    escapeField(log.keyLearnings.join('; ')),
+    escapeField(log.challenges),
+    escapeField(log.goalsForTomorrow),
+  ]);
+
+  // Create CSV content
+  const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
+
+  // Download file
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `ojt-logs-${new Date().toISOString().split('T')[0]}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
 }

@@ -3,11 +3,15 @@ import {
   Calendar,
   ChevronDown,
   Clock,
+  Download,
   FileText,
+  Filter,
   PlusCircle,
+  Search,
   Settings,
   Target,
   Upload,
+  X,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -27,7 +31,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { LogFilters } from '@/lib/api';
 import {
+  exportLogsAsCsv,
   getLogs,
   getTargetHours,
   getTotalHoursLogged,
@@ -50,33 +56,41 @@ export function Dashboard() {
   const [targetHours, setTargetHoursState] = useState(() => getTargetHours());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [targetInput, setTargetInput] = useState(targetHours.toString());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState({ start: '', end: '' });
+  const [weekFilter, setWeekFilter] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<LogFilters>({});
 
-  const fetchLogs = useCallback(async (pageNum: number, isInitial = false) => {
-    if (isInitial) {
-      setLoading(true);
-    } else {
-      setLoadingMore(true);
-    }
-    try {
-      const result = await getLogs(pageNum);
+  const fetchLogs = useCallback(
+    async (pageNum: number, isInitial = false, filters?: LogFilters) => {
       if (isInitial) {
-        setLogs(result.logs);
+        setLoading(true);
       } else {
-        setLogs((prev) => [...prev, ...result.logs]);
+        setLoadingMore(true);
       }
-      setHasMore(result.hasMore);
-      setPage(pageNum);
-      setHasLegacyData(hasLegacyLocalLogs());
-      setLoadError('');
-    } catch (error) {
-      const text = error instanceof Error ? error.message : 'Failed to load logs.';
-      setLoadError(text);
-      toast.error(text);
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  }, []);
+      try {
+        const result = await getLogs(pageNum, filters);
+        if (isInitial) {
+          setLogs(result.logs);
+        } else {
+          setLogs((prev) => [...prev, ...result.logs]);
+        }
+        setHasMore(result.hasMore);
+        setPage(pageNum);
+        setHasLegacyData(hasLegacyLocalLogs());
+        setLoadError('');
+      } catch (error) {
+        const text = error instanceof Error ? error.message : 'Failed to load logs.';
+        setLoadError(text);
+        toast.error(text);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [],
+  );
 
   const fetchTotalHours = useCallback(async () => {
     try {
@@ -89,17 +103,37 @@ export function Dashboard() {
 
   useEffect(() => {
     let active = true;
-    fetchLogs(0, true).then(() => {
+    fetchLogs(0, true, activeFilters).then(() => {
       if (active) fetchTotalHours();
     });
     return () => {
       active = false;
     };
-  }, [fetchLogs, fetchTotalHours]);
+  }, [fetchLogs, fetchTotalHours, activeFilters]);
 
   function handleLoadMore() {
-    fetchLogs(page + 1);
+    fetchLogs(page + 1, false, activeFilters);
   }
+
+  function handleApplyFilters() {
+    const filters: LogFilters = {};
+    if (searchQuery.trim()) filters.search = searchQuery.trim();
+    if (dateFilter.start) filters.startDate = dateFilter.start;
+    if (dateFilter.end) filters.endDate = dateFilter.end;
+    if (weekFilter) filters.weekNumber = parseInt(weekFilter, 10);
+    setActiveFilters(filters);
+    fetchLogs(0, true, filters);
+  }
+
+  function handleClearFilters() {
+    setSearchQuery('');
+    setDateFilter({ start: '', end: '' });
+    setWeekFilter('');
+    setActiveFilters({});
+    fetchLogs(0, true, {});
+  }
+
+  const hasActiveFilters = Object.keys(activeFilters).length > 0;
 
   async function handleImportLegacyLogs() {
     setImporting(true);
@@ -134,6 +168,21 @@ export function Dashboard() {
     }
   }
 
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExportCsv() {
+    setExporting(true);
+    try {
+      await exportLogsAsCsv(hasActiveFilters ? activeFilters : undefined);
+      toast.success('Logs exported successfully!');
+    } catch (error) {
+      const text = error instanceof Error ? error.message : 'Export failed.';
+      toast.error(text);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   const progressPercent = Math.min((totalHours / targetHours) * 100, 100);
   const hoursRemaining = Math.max(targetHours - totalHours, 0);
 
@@ -146,16 +195,129 @@ export function Dashboard() {
             Track your progress and accumulated hours.
           </p>
         </div>
-        <Button
-          asChild
-          className="w-full sm:w-auto shadow-lg shadow-primary/20 transition-all hover:shadow-primary/40"
-        >
-          <Link to="/new">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            New Entry
-          </Link>
-        </Button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button
+            variant="outline"
+            onClick={handleExportCsv}
+            disabled={exporting || logs.length === 0}
+            className="flex-1 sm:flex-none"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            {exporting ? 'Exporting...' : 'Export CSV'}
+          </Button>
+          <Button
+            asChild
+            className="flex-1 sm:flex-none shadow-lg shadow-primary/20 transition-all hover:shadow-primary/40"
+          >
+            <Link to="/new">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              New Entry
+            </Link>
+          </Button>
+        </div>
       </div>
+
+      {/* Search and Filter Section */}
+      <Card className="border-border/50">
+        <CardContent className="py-4">
+          <div className="flex flex-col gap-4">
+            {/* Search Bar */}
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search logs..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
+                  className="pl-9"
+                />
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+                className={showFilters ? 'bg-primary/10' : ''}
+              >
+                <Filter className="mr-2 h-4 w-4" />
+                Filters
+              </Button>
+              <Button onClick={handleApplyFilters}>Search</Button>
+            </div>
+
+            {/* Filter Options */}
+            {showFilters && (
+              <div className="grid gap-4 sm:grid-cols-3 pt-2 border-t">
+                <div className="space-y-2">
+                  <Label htmlFor="startDate">Start Date</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={dateFilter.start}
+                    onChange={(e) => setDateFilter({ ...dateFilter, start: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="endDate">End Date</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={dateFilter.end}
+                    onChange={(e) => setDateFilter({ ...dateFilter, end: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="weekNumber">Week Number</Label>
+                  <Input
+                    id="weekNumber"
+                    type="number"
+                    min="1"
+                    max="52"
+                    placeholder="e.g. 3"
+                    value={weekFilter}
+                    onChange={(e) => setWeekFilter(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Active Filters */}
+            {hasActiveFilters && (
+              <div className="flex items-center gap-2 pt-2 border-t">
+                <span className="text-sm text-muted-foreground">Active filters:</span>
+                <div className="flex flex-wrap gap-2">
+                  {activeFilters.search && (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-md text-sm">
+                      Search: {activeFilters.search}
+                      <X className="h-3 w-3 cursor-pointer" onClick={handleClearFilters} />
+                    </span>
+                  )}
+                  {activeFilters.startDate && (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-md text-sm">
+                      From: {activeFilters.startDate}
+                      <X className="h-3 w-3 cursor-pointer" onClick={handleClearFilters} />
+                    </span>
+                  )}
+                  {activeFilters.endDate && (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-md text-sm">
+                      To: {activeFilters.endDate}
+                      <X className="h-3 w-3 cursor-pointer" onClick={handleClearFilters} />
+                    </span>
+                  )}
+                  {activeFilters.weekNumber && (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-md text-sm">
+                      Week: {activeFilters.weekNumber}
+                      <X className="h-3 w-3 cursor-pointer" onClick={handleClearFilters} />
+                    </span>
+                  )}
+                </div>
+                <Button variant="ghost" size="sm" onClick={handleClearFilters}>
+                  Clear all
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {loading ? (
         <Card className="border-dashed">

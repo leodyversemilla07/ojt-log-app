@@ -11,13 +11,21 @@
     "build": "npm run build -w packages/api && npm run build -w packages/web",
     "build:api": "npm run build -w packages/api",
     "build:web": "npm run build -w packages/web",
-    "test": "npm run test -w packages/web",
+    "test": "npm run test:api && npm run test:web",
+    "test:api": "npm run test -w packages/api",
+    "test:web": "npm run test -w packages/web",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "db:generate": "npm run db:generate -w packages/api",
     "db:push": "npm run db:push -w packages/api",
-    "db:seed": "npm run db:seed -w packages/api"
+    "db:seed": "npm run db:seed -w packages/api",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:dev": "docker compose -f docker-compose.dev.yml up",
+    "docker:dev:build": "docker compose -f docker-compose.dev.yml build"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.3",

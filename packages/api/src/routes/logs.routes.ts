@@ -19,7 +19,7 @@ function getUserId(req: { user?: { userId?: string } }): string {
   return userId;
 }
 
-// GET /api/logs - Get all logs for current user (paginated)
+// GET /api/logs - Get all logs for current user (paginated with filters)
 router.get('/', async (req, res, next) => {
   try {
     const userId = getUserId(req);
@@ -27,9 +27,43 @@ router.get('/', async (req, res, next) => {
     const limit = parseInt(req.query.limit as string, 10) || 20;
     const skip = page * limit;
 
+    // Extract filter parameters
+    const search = req.query.search as string | undefined;
+    const startDate = req.query.startDate as string | undefined;
+    const endDate = req.query.endDate as string | undefined;
+    const weekNumber = req.query.weekNumber
+      ? parseInt(req.query.weekNumber as string, 10)
+      : undefined;
+
+    // Build where clause
+    const where: Record<string, unknown> = { userId };
+
+    if (search) {
+      where.OR = [
+        { tasksAccomplished: { contains: search } },
+        { keyLearnings: { contains: search } },
+        { challenges: { contains: search } },
+        { goalsForTomorrow: { contains: search } },
+      ];
+    }
+
+    if (startDate || endDate) {
+      where.date = {};
+      if (startDate) {
+        where.date = { ...(where.date as Record<string, string>), gte: startDate };
+      }
+      if (endDate) {
+        where.date = { ...(where.date as Record<string, string>), lte: endDate };
+      }
+    }
+
+    if (weekNumber) {
+      where.weekNumber = weekNumber;
+    }
+
     const [logs, total] = await Promise.all([
       prisma.oJTLog.findMany({
-        where: { userId },
+        where,
         orderBy: { date: 'desc' },
         skip,
         take: limit,
@@ -43,7 +77,7 @@ router.get('/', async (req, res, next) => {
           totalHours: true,
         },
       }),
-      prisma.oJTLog.count({ where: { userId } }),
+      prisma.oJTLog.count({ where }),
     ]);
 
     res.json({

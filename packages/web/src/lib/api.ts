@@ -89,11 +89,30 @@ export const authApi = {
 };
 
 // Logs API
+export interface LogFilters {
+  search?: string;
+  startDate?: string;
+  endDate?: string;
+  weekNumber?: number;
+}
+
 export const logsApi = {
-  async getLogs(page: number = 0, limit: number = 20): Promise<PaginatedLogs> {
-    const response = await apiFetch<ApiResponse<PaginatedLogs>>(
-      `/api/logs?page=${page}&limit=${limit}`,
-    );
+  async getLogs(
+    page: number = 0,
+    limit: number = 20,
+    filters?: LogFilters,
+  ): Promise<PaginatedLogs> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+    });
+
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+    if (filters?.weekNumber) params.append('weekNumber', filters.weekNumber.toString());
+
+    const response = await apiFetch<ApiResponse<PaginatedLogs>>(`/api/logs?${params.toString()}`);
     return response.data;
   },
 
