@@ -2,6 +2,8 @@ import { LogOut, Settings } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { toast } from 'sonner';
+import { ModeToggle } from '@/components/mode-toggle';
+import { ThemeProvider } from '@/components/theme-provider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -99,6 +101,7 @@ function AppContent() {
               <p className="text-xs text-muted-foreground truncate">{user.email}</p>
             </div>
             <div className="flex items-center gap-2">
+              <ModeToggle />
               <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
                 <DialogTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -164,8 +167,10 @@ function AppContent() {
 
 export function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider defaultTheme="system" storageKey="ojt-ui-theme">
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
