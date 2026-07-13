@@ -2,9 +2,19 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft, Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import * as z from 'zod';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -42,6 +52,8 @@ export function LogEntryForm() {
   const [loadingLog, setLoadingLog] = useState(isEditing);
   const [submitError, setSubmitError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -57,6 +69,31 @@ export function LogEntryForm() {
       goalsForTomorrow: '',
     },
   });
+
+  // Warn before leaving with unsaved changes
+  const isDirty = form.formState.isDirty;
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      isDirty && !saving && currentLocation.pathname !== nextLocation.pathname,
+  );
+
+  useEffect(() => {
+    if (blocker.state === 'blocked') {
+      setPendingNavigation(() => blocker.proceed);
+      setShowUnsavedWarning(true);
+    }
+  }, [blocker]);
+
+  // Warn before browser close/refresh
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty && !saving) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty, saving]);
 
   useEffect(() => {
     if (isEditing && id) {
@@ -341,6 +378,38 @@ export function LogEntryForm() {
           </div>
         </form>
       </Form>
+
+      {/* Unsaved Changes Dialog */}
+      <AlertDialog open={showUnsavedWarning} onOpenChange={setShowUnsavedWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Are you sure you want to leave? Your changes will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setShowUnsavedWarning(false);
+                setPendingNavigation(null);
+                blocker.reset?.();
+              }}
+            >
+              Stay
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowUnsavedWarning(false);
+                pendingNavigation?.();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Leave
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -4,7 +4,14 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 type LogListItem = Pick<
   OJTLogEntry,
-  'id' | 'date' | 'weekNumber' | 'dayNumber' | 'timeIn' | 'timeOut' | 'totalHours'
+  | 'id'
+  | 'date'
+  | 'weekNumber'
+  | 'dayNumber'
+  | 'timeIn'
+  | 'timeOut'
+  | 'totalHours'
+  | 'tasksAccomplished'
 >;
 
 interface PaginatedLogs {

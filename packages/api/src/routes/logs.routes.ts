@@ -75,6 +75,7 @@ router.get('/', async (req, res, next) => {
           timeIn: true,
           timeOut: true,
           totalHours: true,
+          tasksAccomplished: true,
         },
       }),
       prisma.oJTLog.count({ where }),
@@ -92,9 +93,11 @@ router.get('/', async (req, res, next) => {
             timeIn: string;
             timeOut: string;
             totalHours: number | string;
+            tasksAccomplished: string;
           }) => ({
             ...log,
             totalHours: Number(log.totalHours),
+            tasksAccomplished: JSON.parse(log.tasksAccomplished || '[]'),
           }),
         ),
         total,

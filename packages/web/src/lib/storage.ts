@@ -126,7 +126,7 @@ export async function getLogs(page: number = 0, filters?: LogFilters): Promise<P
         timeIn: log.timeIn.slice(0, 5),
         timeOut: log.timeOut.slice(0, 5),
         totalHours: Number(log.totalHours),
-        tasksAccomplished: [],
+        tasksAccomplished: Array.isArray(log.tasksAccomplished) ? log.tasksAccomplished : [],
         keyLearnings: [],
         challenges: '',
         goalsForTomorrow: '',
