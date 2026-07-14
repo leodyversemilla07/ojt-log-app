@@ -46,8 +46,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { WeeklySummaryCard } from '@/components/weekly-summary';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
-import type { LogFilters } from '@/lib/api';
+import type { LogFilters, WeeklyBucket } from '@/lib/api';
+import { logsApi } from '@/lib/api';
 import {
   deleteLog,
   exportLogsAsCsv,
@@ -86,6 +88,11 @@ export function Dashboard() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Weekly summary
+  const [weeklyBuckets, setWeeklyBuckets] = useState<WeeklyBucket[] | null>(null);
+  const [weeklyLoading, setWeeklyLoading] = useState(true);
+  const [weeklyError, setWeeklyError] = useState<string>('');
 
   const fetchLogs = useCallback(
     async (pageNum: number, isInitial = false, filters?: LogFilters) => {
@@ -126,15 +133,30 @@ export function Dashboard() {
     }
   }, []);
 
+  const fetchWeeklySummary = useCallback(async () => {
+    setWeeklyLoading(true);
+    try {
+      const summary = await logsApi.getWeeklySummary(8);
+      setWeeklyBuckets(summary.weeks);
+      setWeeklyError('');
+    } catch (error) {
+      const text = error instanceof Error ? error.message : 'Failed to load weekly summary.';
+      setWeeklyError(text);
+    } finally {
+      setWeeklyLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let active = true;
     fetchLogs(0, true, activeFilters).then(() => {
       if (active) fetchTotalHours();
     });
+    fetchWeeklySummary();
     return () => {
       active = false;
     };
-  }, [fetchLogs, fetchTotalHours, activeFilters]);
+  }, [fetchLogs, fetchTotalHours, fetchWeeklySummary, activeFilters]);
 
   function handleLoadMore() {
     fetchLogs(page + 1, false, activeFilters);
@@ -576,6 +598,13 @@ export function Dashboard() {
           </div>
         </CardContent>
       </Card>
+
+      <WeeklySummaryCard
+        weeks={weeklyBuckets}
+        loading={weeklyLoading}
+        error={weeklyError}
+        targetHours={targetHours}
+      />
 
       {/* Analytics Charts */}
       {!loading && logs.length > 0 && (

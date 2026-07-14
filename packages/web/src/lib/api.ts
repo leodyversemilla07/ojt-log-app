@@ -22,6 +22,18 @@ interface PaginatedLogs {
 
 type LogDetail = OJTLogEntry;
 
+export interface WeeklyBucket {
+  weekNumber: number;
+  totalHours: number;
+  daysLogged: number;
+  firstDate: string | null;
+  lastDate: string | null;
+}
+
+export interface WeeklySummary {
+  weeks: WeeklyBucket[];
+}
+
 // Token management
 let authToken: string | null = localStorage.getItem('auth_token');
 
@@ -136,6 +148,13 @@ export const logsApi = {
   async getTotalHours(): Promise<number> {
     const response = await apiFetch<ApiResponse<{ totalHours: number }>>('/api/logs/stats');
     return response.data.totalHours;
+  },
+
+  async getWeeklySummary(weeks: number = 8): Promise<WeeklySummary> {
+    const response = await apiFetch<ApiResponse<WeeklySummary>>(
+      `/api/logs/weekly-summary?weeks=${weeks}`,
+    );
+    return response.data;
   },
 
   async createLog(data: Omit<LogDetail, 'id' | 'totalHours'>): Promise<LogDetail> {

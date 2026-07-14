@@ -131,6 +131,43 @@ router.get('/stats', async (req, res, next) => {
   }
 });
 
+// GET /api/logs/weekly-summary - Get hours grouped by week
+router.get('/weekly-summary', async (req, res, next) => {
+  try {
+    const userId = getUserId(req);
+    const limit = Math.min(parseInt(req.query.weeks as string, 10) || 8, 52);
+
+    const rows = await prisma.oJTLog.groupBy({
+      by: ['weekNumber'],
+      where: { userId },
+      _sum: { totalHours: true },
+      _count: { _all: true },
+      _min: { date: true },
+      _max: { date: true },
+      orderBy: { weekNumber: 'desc' },
+      take: limit,
+    });
+
+    const weeks = rows.map((row) => ({
+      weekNumber: row.weekNumber,
+      totalHours: Number(row._sum.totalHours || 0),
+      daysLogged: row._count._all,
+      firstDate: row._min.date,
+      lastDate: row._max.date,
+    }));
+
+    // reverse so most recent is last (easier for charts)
+    weeks.reverse();
+
+    res.json({
+      status: 'success',
+      data: { weeks },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/logs/:id - Get single log
 router.get('/:id', async (req, res, next) => {
   try {
