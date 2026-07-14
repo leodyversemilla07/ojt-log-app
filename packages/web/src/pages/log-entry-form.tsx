@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, History, Save, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom';
@@ -29,6 +29,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  clearDraft,
+  type DraftValue,
+  loadDraft,
+  useDraftAutosave,
+} from '@/hooks/use-draft-autosave';
 import { getLogById, saveLog, updateLog } from '@/lib/storage';
 
 const formSchema = z.object({
@@ -54,6 +60,7 @@ export function LogEntryForm() {
   const [saving, setSaving] = useState(false);
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
+  const [draftRestoredAt, setDraftRestoredAt] = useState<number | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -69,6 +76,49 @@ export function LogEntryForm() {
       goalsForTomorrow: '',
     },
   });
+
+  // Draft autosave — only enabled for new entries (not editing existing log)
+  const draftId = isEditing ? `edit_${id}` : 'new';
+  const draftValues = form.watch() as DraftValue;
+
+  const { restored: draftPendingRestore, discard: discardDraft } = useDraftAutosave<FormValues>({
+    draftId,
+    values: draftValues,
+    shouldSave: (v) => {
+      // Don't save if user hasn't typed anything beyond defaults
+      const tasksTrimmed = (v.tasksAccomplished || '').trim();
+      const learningsTrimmed = (v.keyLearnings || '').trim();
+      const challengesTrimmed = (v.challenges || '').trim();
+      const goalsTrimmed = (v.goalsForTomorrow || '').trim();
+      return (
+        tasksTrimmed.length >= 5 ||
+        learningsTrimmed.length >= 5 ||
+        challengesTrimmed.length > 0 ||
+        goalsTrimmed.length > 0
+      );
+    },
+  });
+
+  // Restore draft once on mount (for new entries only)
+  useEffect(() => {
+    if (isEditing) return;
+    if (!draftPendingRestore) return;
+    const draft = loadDraft<FormValues>(draftId);
+    if (!draft) return;
+    form.reset({
+      date: draft.date || new Date().toISOString().split('T')[0],
+      weekNumber: draft.weekNumber || 1,
+      dayNumber: draft.dayNumber || 1,
+      timeIn: draft.timeIn || '08:00',
+      timeOut: draft.timeOut || '17:00',
+      tasksAccomplished: draft.tasksAccomplished || '',
+      keyLearnings: draft.keyLearnings || '',
+      challenges: draft.challenges || '',
+      goalsForTomorrow: draft.goalsForTomorrow || '',
+    });
+    setDraftRestoredAt(Date.now());
+    toast.info('Draft restored.');
+  }, [draftPendingRestore, isEditing, form, draftId]);
 
   // Warn before leaving with unsaved changes
   const isDirty = form.formState.isDirty;
@@ -154,6 +204,7 @@ export function LogEntryForm() {
         toast.success('Log updated successfully.');
       } else {
         await saveLog(logData);
+        clearDraft(draftId);
         toast.success('Log saved successfully.');
       }
       navigate('/');
@@ -166,6 +217,23 @@ export function LogEntryForm() {
     }
   }
 
+  function handleDiscardDraft() {
+    discardDraft();
+    form.reset({
+      date: new Date().toISOString().split('T')[0],
+      weekNumber: 1,
+      dayNumber: 1,
+      timeIn: '08:00',
+      timeOut: '17:00',
+      tasksAccomplished: '',
+      keyLearnings: '',
+      challenges: '',
+      goalsForTomorrow: '',
+    });
+    setDraftRestoredAt(null);
+    toast.success('Draft discarded.');
+  }
+
   return (
     <div className="space-y-6 animate-in slide-in-from-bottom-8 duration-500">
       <div className="flex items-center gap-4">
@@ -174,7 +242,7 @@ export function LogEntryForm() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
         </Button>
-        <div>
+        <div className="flex-1 min-w-0">
           <h1 className="text-3xl font-bold tracking-tight">
             {isEditing ? 'Edit Log Entry' : 'New Log Entry'}
           </h1>
@@ -182,6 +250,21 @@ export function LogEntryForm() {
             Document your daily OJT activities and learnings.
           </p>
         </div>
+        {!isEditing && draftRestoredAt ? (
+          <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs">
+            <History className="size-3.5 text-primary" />
+            <span className="text-primary font-medium">Draft restored</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDiscardDraft}
+              className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
+            >
+              <Trash2 className="mr-1 size-3" />
+              Discard
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       <Form {...form}>
