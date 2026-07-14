@@ -148,13 +148,21 @@ router.get('/weekly-summary', async (req, res, next) => {
       take: limit,
     });
 
-    const weeks = rows.map((row) => ({
-      weekNumber: row.weekNumber,
-      totalHours: Number(row._sum.totalHours || 0),
-      daysLogged: row._count._all,
-      firstDate: row._min.date,
-      lastDate: row._max.date,
-    }));
+    const weeks = rows.map(
+      (row: {
+        weekNumber: number;
+        _sum: { totalHours: number | null };
+        _count: { _all: number };
+        _min: { date: string | null };
+        _max: { date: string | null };
+      }) => ({
+        weekNumber: row.weekNumber,
+        totalHours: Number(row._sum.totalHours || 0),
+        daysLogged: row._count._all,
+        firstDate: row._min.date,
+        lastDate: row._max.date,
+      }),
+    );
 
     // reverse so most recent is last (easier for charts)
     weeks.reverse();
