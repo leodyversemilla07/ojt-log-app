@@ -102,6 +102,11 @@ jobs:
     name: Docker Smoke Test
     runs-on: ubuntu-latest
     needs: [docker]
+    env:
+      # Provide a strong secret locally to satisfy the API boot guards
+      # (in production this MUST be set via the host environment, never baked in)
+      JWT_SECRET: 'ci-smoke-test-secret-not-for-production-use-32+chars'
+      CORS_ORIGINS: 'http://localhost,http://localhost:80'
     steps:
       - uses: actions/checkout@v4
 
