@@ -1,4 +1,5 @@
 import type { OJTLogEntry } from '@ojt-log/shared';
+import { jsPDF } from 'jspdf';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -13,9 +14,8 @@ import {
   Target,
   Trash2,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useReactToPrint } from 'react-to-print';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -41,12 +41,132 @@ export function LogDetailView() {
   const [loadError, setLoadError] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
-  const printTemplateRef = useRef<HTMLDivElement>(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
-  const handleExportPDF = useReactToPrint({
-    contentRef: printTemplateRef,
-    documentTitle: log ? `ojt-log-${log.date}` : 'ojt-log',
-  });
+  function handleExportPDF() {
+    if (!log) return;
+    setExportingPdf(true);
+    try {
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 54; // ~0.75 inch
+      const maxWidth = pageWidth - margin * 2;
+      let y = margin;
+
+      // Title
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text('OJT Narrative Daily Log', pageWidth / 2, y, { align: 'center' });
+      y += 28;
+
+      // Meta block
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      const meta: Array<[string, string]> = [
+        ['Date', log.date],
+        ['Week Number', `Week ${log.weekNumber}`],
+        ['Day Number', `Day ${log.dayNumber}`],
+        ['Time In', log.timeIn],
+        ['Time Out', log.timeOut],
+        ['Total Hours for the Day', `${log.totalHours.toFixed(2)} hours`],
+      ];
+      for (const [label, value] of meta) {
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${label}:`, margin, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(value, margin + 110, y);
+        y += 18;
+      }
+
+      y += 10;
+      // Divider
+      doc.setDrawColor(120);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 20;
+
+      function drawSection(title: string, lines: string[]) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.text(title, margin, y);
+        y += 16;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(11);
+        if (lines.length === 0) {
+          doc.text('- None', margin + 12, y);
+          y += 16;
+          return;
+        }
+        for (const line of lines) {
+          const wrapped = doc.splitTextToSize(line, maxWidth - 12);
+          for (const segment of wrapped) {
+            if (y > pageHeight - margin) {
+              doc.addPage();
+              y = margin;
+            }
+            doc.text('•', margin, y);
+            doc.text(segment, margin + 12, y);
+            y += 15;
+          }
+        }
+        y += 6;
+      }
+
+      drawSection('1. Tasks Accomplished / Activities Performed', log.tasksAccomplished);
+      drawSection('2. Key Learnings / Observations', log.keyLearnings);
+
+      // Challenges (paragraph)
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      if (y > pageHeight - margin - 40) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.text('3. Challenges Encountered & Actions Taken (If any)', margin, y);
+      y += 16;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      const challengeLines = doc.splitTextToSize(log.challenges || '- None', maxWidth);
+      for (const segment of challengeLines) {
+        if (y > pageHeight - margin) {
+          doc.addPage();
+          y = margin;
+        }
+        doc.text(segment, margin, y);
+        y += 15;
+      }
+      y += 6;
+
+      // Goals
+      if (y > pageHeight - margin - 40) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text('4. Goals for Tomorrow', margin, y);
+      y += 16;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      const goalLines = doc.splitTextToSize(log.goalsForTomorrow || '- None', maxWidth);
+      for (const segment of goalLines) {
+        if (y > pageHeight - margin) {
+          doc.addPage();
+          y = margin;
+        }
+        doc.text(segment, margin, y);
+        y += 15;
+      }
+
+      doc.save(`ojt-log-${log.date}.pdf`);
+      toast.success('PDF exported.');
+    } catch (err) {
+      console.error('PDF export failed:', err);
+      toast.error(err instanceof Error ? err.message : 'PDF export failed.');
+    } finally {
+      setExportingPdf(false);
+    }
+  }
 
   useEffect(() => {
     if (!id) return;
@@ -225,14 +345,16 @@ ${log.goalsForTomorrow || '- None'}
             variant="outline"
             size="sm"
             onClick={handleExportPDF}
+            disabled={exportingPdf || !log}
             className="hidden sm:flex border-primary/20 hover:bg-primary/10 hover:text-primary"
           >
-            <Download className="h-4 w-4 mr-2" /> Export PDF
+            <Download className="h-4 w-4 mr-2" /> {exportingPdf ? 'Generating...' : 'Export PDF'}
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={handleExportPDF}
+            disabled={exportingPdf || !log}
             className="sm:hidden border-primary/20 hover:bg-primary/10 hover:text-primary"
             aria-label="Export PDF"
           >
@@ -402,73 +524,6 @@ ${log.goalsForTomorrow || '- None'}
             )}
           </div>
         )}
-      </div>
-
-      <div
-        ref={printTemplateRef}
-        className="hidden print:block bg-white text-black p-10 text-[12pt] leading-relaxed"
-      >
-        <h1 className="text-2xl font-bold text-center mb-8">OJT Narrative Daily Log</h1>
-
-        <div className="space-y-1 mb-6">
-          <p>
-            <span className="font-semibold">Date:</span> {log.date}
-          </p>
-          <p>
-            <span className="font-semibold">Week Number:</span> Week {log.weekNumber}
-          </p>
-          <p>
-            <span className="font-semibold">Day Number:</span> Day {log.dayNumber}
-          </p>
-          <p>
-            <span className="font-semibold">Time In:</span> {log.timeIn}
-          </p>
-          <p>
-            <span className="font-semibold">Time Out:</span> {log.timeOut}
-          </p>
-          <p>
-            <span className="font-semibold">Total Hours for the Day:</span>{' '}
-            {log.totalHours.toFixed(2)} hours
-          </p>
-        </div>
-
-        <hr className="border-black my-6" />
-
-        <section className="mb-6">
-          <h2 className="font-semibold mb-2">1. Tasks Accomplished / Activities Performed</h2>
-          {log.tasksAccomplished.length > 0 ? (
-            <ul className="list-disc pl-6 space-y-1">
-              {log.tasksAccomplished.map((task) => (
-                <li key={`print-${task}`}>{task}</li>
-              ))}
-            </ul>
-          ) : (
-            <p>- None</p>
-          )}
-        </section>
-
-        <section className="mb-6">
-          <h2 className="font-semibold mb-2">2. Key Learnings / Observations</h2>
-          {log.keyLearnings.length > 0 ? (
-            <ul className="list-disc pl-6 space-y-1">
-              {log.keyLearnings.map((learning) => (
-                <li key={`print-${learning}`}>{learning}</li>
-              ))}
-            </ul>
-          ) : (
-            <p>- None</p>
-          )}
-        </section>
-
-        <section className="mb-6">
-          <h2 className="font-semibold mb-2">3. Challenges Encountered & Actions Taken (If any)</h2>
-          <p className="whitespace-pre-wrap">{log.challenges || '- None'}</p>
-        </section>
-
-        <section className="mb-8">
-          <h2 className="font-semibold mb-2">4. Goals for Tomorrow</h2>
-          <p className="whitespace-pre-wrap">{log.goalsForTomorrow || '- None'}</p>
-        </section>
       </div>
     </div>
   );
