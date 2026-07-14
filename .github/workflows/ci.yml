@@ -113,42 +113,13 @@ jobs:
       - name: Build compose images
         run: docker compose build
 
-      - name: Start stack in background
+      - name: Start API service and wait for healthy
         run: |
-          docker compose up -d
+          docker compose up -d --wait api
+          echo "--- compose ps ---"
           docker compose ps
 
-      - name: Wait for API health
-        run: |
-          for i in $(seq 1 60); do
-            if curl -sf http://localhost:3001/health >/dev/null; then
-              echo "API ready after ${i}s"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "API failed to start in time"
-          echo "--- api logs ---"
-          docker compose logs api || true
-          echo "--- api container status ---"
-          docker compose ps api || true
-          exit 1
-
-      - name: Wait for Web health
-        run: |
-          for i in $(seq 1 30); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:80 || true)
-            if [ "$code" = "200" ]; then
-              echo "Web ready after ${i}s"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "Web failed to start in time"
-          docker compose logs web
-          exit 1
-
-      - name: API returns healthy + sets security headers
+      - name: API returns healthy with security headers
         run: |
           headers=$(curl -sI http://localhost:3001/health)
           echo "$headers"
@@ -159,7 +130,6 @@ jobs:
 
       - name: API CORS rejects unknown origins
         run: |
-          # Forbidden origin should NOT receive Access-Control-Allow-Origin
           out=$(curl -sI -H 'Origin: https://evil.example' http://localhost:3001/health || true)
           echo "$out"
           if echo "$out" | grep -i '^access-control-allow-origin: https://evil.example' >/dev/null; then
@@ -167,9 +137,14 @@ jobs:
             exit 1
           fi
 
+      - name: Start Web service and wait for healthy
+        run: |
+          docker compose up -d --wait web
+          echo "--- compose ps ---"
+          docker compose ps
+
       - name: Web SPA fallback works for deep-links
         run: |
-          # Deep link that requires the SPA fallback (no /log/abc.html file exists)
           body=$(curl -s http://localhost:80/log/abc-123)
           echo "$body" | grep -i '<title>' | head -1
           echo "$body" | grep -i '/assets/' >/dev/null

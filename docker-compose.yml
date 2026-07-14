@@ -10,7 +10,8 @@ services:
       - NODE_ENV=production
       - PORT=3001
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set (>=16 chars, not the placeholder)}
-      - DATABASE_URL=file:./prisma/dev.db
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost}
+      - DATABASE_URL=file:./dev.db
     volumes:
       - api-data:/app/packages/api/prisma
     restart: unless-stopped

@@ -18,6 +18,9 @@ COPY packages/shared ./packages/shared
 # Generate Prisma client
 RUN cd packages/api && npx prisma generate
 
+# Build shared library first (API depends on compiled JS at runtime)
+RUN npm run build -w packages/shared
+
 # Build
 RUN npm run build -w packages/api
 
@@ -36,6 +39,9 @@ COPY packages/shared/package.json ./packages/shared/
 
 # Install production dependencies only
 RUN npm ci --omit=dev
+
+# Copy built shared library (compiled JS — Node needs this, not the raw TS)
+COPY --from=api-builder /app/packages/shared/dist ./packages/shared/dist
 
 # Copy built files
 COPY --from=api-builder /app/packages/api/dist ./packages/api/dist
