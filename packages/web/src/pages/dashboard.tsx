@@ -1,6 +1,7 @@
 import type { OJTLogEntry } from '@ojt-log/shared';
 import {
   Calendar,
+  CheckSquare,
   ChevronDown,
   Clock,
   Download,
@@ -10,16 +11,28 @@ import {
   Search,
   Settings,
   Target,
+  Trash2,
   Upload,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AnalyticsCharts } from '@/components/analytics-charts';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogClose,
@@ -33,8 +46,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import type { LogFilters } from '@/lib/api';
 import {
+  deleteLog,
   exportLogsAsCsv,
   getLogs,
   getTargetHours,
@@ -45,6 +60,7 @@ import {
 } from '@/lib/storage';
 
 export function Dashboard() {
+  const navigate = useNavigate();
   const [logs, setLogs] = useState<OJTLogEntry[]>([]);
   const [totalHours, setTotalHours] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -63,6 +79,13 @@ export function Dashboard() {
   const [weekFilter, setWeekFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [activeFilters, setActiveFilters] = useState<LogFilters>({});
+
+  // Bulk select state
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const fetchLogs = useCallback(
     async (pageNum: number, isInitial = false, filters?: LogFilters) => {
@@ -158,6 +181,73 @@ export function Dashboard() {
     }
   }
 
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    const visibleIds = logs.map((l) => l.id);
+    const allSelected = visibleIds.every((id) => selectedIds.has(id));
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(visibleIds));
+    }
+  }
+
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setBulkDeleting(true);
+    let succeeded = 0;
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        await deleteLog(id);
+        succeeded++;
+      } catch (e) {
+        console.error('Failed to delete log:', id, e);
+        failed++;
+      }
+    }
+    setLogs((prev) => prev.filter((l) => !selectedIds.has(l.id)));
+    setBulkDeleteOpen(false);
+    exitSelectMode();
+    setBulkDeleting(false);
+    fetchTotalHours();
+    if (failed === 0) {
+      toast.success(`Deleted ${succeeded} log${succeeded === 1 ? '' : 's'}.`);
+    } else {
+      toast.error(`Deleted ${succeeded}, ${failed} failed.`);
+    }
+  }
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    modK: () => {
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    },
+    modN: () => navigate('/new'),
+    escape: () => {
+      if (selectMode) exitSelectMode();
+    },
+  });
+
+  const selectedCount = selectedIds.size;
+  const visibleIds = logs.map((l) => l.id);
+  const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+
   function handleSaveTargetHours() {
     const hours = Number(targetInput);
     if (hours > 0) {
@@ -197,25 +287,57 @@ export function Dashboard() {
             Track your progress and accumulated hours.
           </p>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Button
-            variant="outline"
-            onClick={handleExportCsv}
-            disabled={exporting || logs.length === 0}
-            className="flex-1 sm:flex-none"
-          >
-            <Download className="mr-2 h-4 w-4" />
-            {exporting ? 'Exporting...' : 'Export CSV'}
-          </Button>
-          <Button
-            asChild
-            className="flex-1 sm:flex-none shadow-lg shadow-primary/20 transition-all hover:shadow-primary/40"
-          >
-            <Link to="/new">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              New Entry
-            </Link>
-          </Button>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          {selectMode ? (
+            <>
+              <Button variant="outline" onClick={exitSelectMode} className="flex-1 sm:flex-none">
+                <X className="mr-2 h-4 w-4" />
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => setBulkDeleteOpen(true)}
+                disabled={selectedCount === 0 || bulkDeleting}
+                className="flex-1 sm:flex-none"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete ({selectedCount})
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                onClick={handleExportCsv}
+                disabled={exporting || logs.length === 0}
+                className="flex-1 sm:flex-none"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {exporting ? 'Exporting...' : 'Export CSV'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setSelectMode(true)}
+                disabled={logs.length === 0}
+                className="flex-1 sm:flex-none"
+              >
+                <CheckSquare className="mr-2 h-4 w-4" />
+                Select
+              </Button>
+              <Button
+                asChild
+                className="flex-1 sm:flex-none shadow-lg shadow-primary/20 transition-all hover:shadow-primary/40"
+              >
+                <Link to="/new">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  New Entry
+                  <kbd className="ml-2 hidden sm:inline-block px-1.5 py-0.5 text-xs bg-primary-foreground/20 rounded">
+                    ⌘N
+                  </kbd>
+                </Link>
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -228,7 +350,8 @@ export function Dashboard() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search logs..."
+                  ref={searchInputRef}
+                  placeholder="Search logs...  (Ctrl+K)"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
@@ -460,7 +583,22 @@ export function Dashboard() {
       )}
 
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight">Recent Logs</h2>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h2 className="text-xl font-semibold tracking-tight">Recent Logs</h2>
+          {selectMode && logs.length > 0 ? (
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="select-all"
+                checked={allSelected}
+                onCheckedChange={toggleSelectAll}
+                aria-label="Select all visible logs"
+              />
+              <label htmlFor="select-all" className="text-sm cursor-pointer select-none">
+                {allSelected ? 'Deselect all' : 'Select all'}
+              </label>
+            </div>
+          ) : null}
+        </div>
         {loading ? (
           <Card className="border-dashed">
             <CardContent className="space-y-3 py-6">
@@ -489,22 +627,39 @@ export function Dashboard() {
           </Card>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {logs.map((log) => (
-              <Link
-                key={log.id}
-                to={`/log/${log.id}`}
-                className="block group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl"
-              >
-                <Card className="h-full transition-all duration-300 hover:shadow-md hover:border-primary/50 bg-linear-to-br from-card to-muted/30">
+            {logs.map((log) => {
+              const isSelected = selectedIds.has(log.id);
+              const cardInner = (
+                <Card
+                  className={
+                    selectMode
+                      ? `h-full bg-linear-to-br from-card to-muted/30 cursor-pointer transition-all duration-200 ${
+                          isSelected
+                            ? 'border-primary ring-2 ring-primary/40'
+                            : 'hover:border-primary/50'
+                        }`
+                      : 'h-full transition-all duration-300 hover:shadow-md hover:border-primary/50 bg-linear-to-br from-card to-muted/30'
+                  }
+                >
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-lg group-hover:text-primary transition-colors duration-300">
-                      {new Date(log.date).toLocaleDateString('en-US', {
-                        weekday: 'short',
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </CardTitle>
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle className="text-lg group-hover:text-primary transition-colors duration-300">
+                        {new Date(log.date).toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </CardTitle>
+                      {selectMode ? (
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSelected(log.id)}
+                          aria-label={`Select log from ${log.date}`}
+                          className="mt-1"
+                        />
+                      ) : null}
+                    </div>
                     <CardDescription className="opacity-80">
                       Week {log.weekNumber}, Day {log.dayNumber}
                     </CardDescription>
@@ -525,8 +680,32 @@ export function Dashboard() {
                     </p>
                   </CardContent>
                 </Card>
-              </Link>
-            ))}
+              );
+
+              if (selectMode) {
+                return (
+                  <button
+                    key={log.id}
+                    type="button"
+                    onClick={() => toggleSelected(log.id)}
+                    className="block text-left rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    aria-pressed={isSelected}
+                  >
+                    {cardInner}
+                  </button>
+                );
+              }
+
+              return (
+                <Link
+                  key={log.id}
+                  to={`/log/${log.id}`}
+                  className="block group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl"
+                >
+                  {cardInner}
+                </Link>
+              );
+            })}
           </div>
         )}
         {hasMore && (
@@ -544,6 +723,31 @@ export function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Bulk delete confirmation */}
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {selectedCount} log{selectedCount === 1 ? '' : 's'}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This cannot be undone. The selected log{selectedCount === 1 ? '' : 's'} will be
+              permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleting ? 'Deleting...' : `Delete ${selectedCount}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
