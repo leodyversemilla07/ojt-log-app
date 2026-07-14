@@ -15,8 +15,16 @@ app.use(helmet());
 app.use(securityHeaders);
 app.use(
   cors({
-    origin: config.nodeEnv === 'production' ? config.frontendUrl : '*',
+    origin: (origin, callback) => {
+      // Allow non-browser (curl, server-to-server) calls with no Origin header
+      if (!origin) return callback(null, true);
+      if (config.corsOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error(`Origin ${origin} is not allowed by CORS policy`));
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    maxAge: 600,
   }),
 );
 
