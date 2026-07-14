@@ -2,6 +2,7 @@ import { LogOut, Settings } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { toast } from 'sonner';
+import { RouteErrorBoundary } from '@/components/error-boundary';
 import { ModeToggle } from '@/components/mode-toggle';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Button } from '@/components/ui/button';
@@ -154,10 +155,38 @@ function AppContent() {
           }
         >
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/new" element={<LogEntryForm />} />
-            <Route path="/edit/:id" element={<LogEntryForm />} />
-            <Route path="/log/:id" element={<LogDetailView />} />
+            <Route
+              path="/"
+              element={
+                <RouteErrorBoundary title="The dashboard failed to load">
+                  <Dashboard />
+                </RouteErrorBoundary>
+              }
+            />
+            <Route
+              path="/new"
+              element={
+                <RouteErrorBoundary title="The new entry form failed to load">
+                  <LogEntryForm />
+                </RouteErrorBoundary>
+              }
+            />
+            <Route
+              path="/edit/:id"
+              element={
+                <RouteErrorBoundary title="The edit form failed to load">
+                  <LogEntryForm />
+                </RouteErrorBoundary>
+              }
+            />
+            <Route
+              path="/log/:id"
+              element={
+                <RouteErrorBoundary title="This log entry failed to load">
+                  <LogDetailView />
+                </RouteErrorBoundary>
+              }
+            />
           </Routes>
         </Suspense>
       </main>

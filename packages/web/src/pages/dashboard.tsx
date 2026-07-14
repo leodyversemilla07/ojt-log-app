@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AnalyticsCharts } from '@/components/analytics-charts';
+import { ErrorBoundary } from '@/components/error-boundary';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -599,17 +600,21 @@ export function Dashboard() {
         </CardContent>
       </Card>
 
-      <WeeklySummaryCard
-        weeks={weeklyBuckets}
-        loading={weeklyLoading}
-        error={weeklyError}
-        targetHours={targetHours}
-      />
+      <ErrorBoundary inline title="Weekly summary crashed">
+        <WeeklySummaryCard
+          weeks={weeklyBuckets}
+          loading={weeklyLoading}
+          error={weeklyError}
+          targetHours={targetHours}
+        />
+      </ErrorBoundary>
 
       {/* Analytics Charts */}
-      {!loading && logs.length > 0 && (
-        <AnalyticsCharts logs={logs} totalHours={totalHours} targetHours={targetHours} />
-      )}
+      {!loading && logs.length > 0 ? (
+        <ErrorBoundary inline title="Charts crashed while rendering">
+          <AnalyticsCharts logs={logs} totalHours={totalHours} targetHours={targetHours} />
+        </ErrorBoundary>
+      ) : null}
 
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2 flex-wrap">
