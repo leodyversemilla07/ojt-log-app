@@ -137,11 +137,26 @@ jobs:
             exit 1
           fi
 
-      - name: Start Web service and wait for healthy
+      - name: Start Web service
         run: |
-          docker compose up -d --wait web
+          docker compose up -d web
           echo "--- compose ps ---"
           docker compose ps
+
+      - name: Wait for Web to serve
+        run: |
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:80 || true)
+            if [ "$code" = "200" ]; then
+              echo "Web ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Web failed to start in time"
+          docker compose logs web || true
+          docker compose ps web || true
+          exit 1
 
       - name: Web SPA fallback works for deep-links
         run: |
