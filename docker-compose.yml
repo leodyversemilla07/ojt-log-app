@@ -7,10 +7,10 @@ services:
     ports:
       - '3001:3001'
     environment:
-  - NODE_ENV=production
-  - PORT=3001
-  - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set (>=16 chars, not the placeholder)}
-  - DATABASE_URL=file:./prisma/dev.db
+      - NODE_ENV=production
+      - PORT=3001
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set (>=16 chars, not the placeholder)}
+      - DATABASE_URL=file:./prisma/dev.db
     volumes:
       - api-data:/app/packages/api/prisma
     restart: unless-stopped
