@@ -55,7 +55,7 @@ ENV PORT=3001
 EXPOSE 3001
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
+  CMD wget -q -O /dev/null http://127.0.0.1:3001/health || exit 1
 
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "packages/api/dist/index.js"]
@@ -92,4 +92,4 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:80 || exit 1
+  CMD wget -q -O /dev/null http://127.0.0.1:80/ || exit 1
